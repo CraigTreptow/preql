@@ -2,31 +2,33 @@
 {-# LANGUAGE OverloadedStrings        #-}
 {-# LANGUAGE QuasiQuotes              #-}
 
-import Test.Wire (connectionString, wire)
+import           Test.Parser.Select        (parser)
+import           Test.Wire                 (connectionString, wire)
 
-import Preql.QuasiQuoter.Raw.TH
-import Preql.Wire
+import           Preql.QuasiQuoter.Raw.TH
+import           Preql.Wire
 
-import Data.Either
-import Data.Int
-import Data.List.NonEmpty (NonEmpty(..))
-import Database.PostgreSQL.LibPQ (connectdb, finish)
-import Prelude hiding (Ordering(..), lex)
-import Test.Tasty
-import Test.Tasty.HUnit
+import           Data.Either
+import           Data.Int
+import           Data.List.NonEmpty        (NonEmpty (..))
+import           Database.PostgreSQL.LibPQ (connectdb, finish)
+import           Prelude                   hiding (Ordering (..), lex)
+import           Test.Tasty
+import           Test.Tasty.HUnit
 
 import qualified Preql.QuasiQuoter.Raw.Lex as L
-import qualified Preql.Wire.Query as W
+import qualified Preql.Wire.Query          as W
 
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.Builder as TLB
+import qualified Data.List.NonEmpty        as NE
+import qualified Data.Text                 as T
+import qualified Data.Text.Lazy            as TL
+import qualified Data.Text.Lazy.Builder    as TLB
 
 main :: IO ()
 main = defaultMain $ testGroup "crispy-broccoli"
     [ antiquotes
     , wire
+    , parser
     -- , integration
     ]
 
