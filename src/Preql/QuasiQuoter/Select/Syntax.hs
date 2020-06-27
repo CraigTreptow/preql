@@ -14,3 +14,8 @@ data Any = NumberedParam Word
     | HaskellParam String
     | Sql String
     deriving (Show, Eq)
+
+showAny :: Any -> String
+showAny (NumberedParam n)   = '$' : show n
+showAny (HaskellParam name) = "${" ++ name ++ "}"
+showAny (Sql s)             = s

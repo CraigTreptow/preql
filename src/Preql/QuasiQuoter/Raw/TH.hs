@@ -5,6 +5,7 @@
 
 module Preql.QuasiQuoter.Raw.TH where
 
+import           Preql.QuasiQuoter.Common
 import           Preql.QuasiQuoter.Raw.Lex  (Token (..), parseQuery, unLex)
 import           Preql.Wire                 (Query (..))
 
@@ -16,11 +17,7 @@ import           Language.Haskell.TH.Syntax (Lift (..))
 
 import qualified Data.Text                  as T
 
--- | A list of n Names beginning with the given character
-cNames :: Char -> Int -> Q [Name]
-cNames c n = traverse newName (replicate n (c : ""))
-
--- | Convert a rewritten SQL string to a ByteString
+-- | Convert a rewritten SQL string to a ByteString, leaving width free.
 makeQuery :: String -> Q Exp
 makeQuery string = [e|(fromString string :: Query $(VarT <$> (newName "n"))) |]
 
@@ -51,6 +48,7 @@ sql  = expressionOnly "sql " $ \raw -> do
     loc <- location
     let e_ast = parseQuery (show loc) raw
     case e_ast of
+        Left err -> error err
         Right parsed -> do
             let
                 positionalCount = maxParam parsed
@@ -58,32 +56,7 @@ sql  = expressionOnly "sql " $ \raw -> do
                 -- mkName, because we intend to capture what's in scope
                 antiNames = map mkName haskellExpressions
             query <- makeQuery rewritten
-            case positionalCount of
-                0 -> -- only antiquotes (or no params)
-                    return $ TupE [query, tupleOrSingle antiNames]
-                1 -> do -- one positional param, doesn't take a tuple
-                    patternName <- newName "c"
-                    return $ LamE [VarP patternName]
-                        (TupE [query, tupleOrSingle (patternName : antiNames)])
-                _ -> do -- at least two positional parameters
-                    patternNames <- cNames 'q' (fromIntegral positionalCount)
-                    return $ LamE
-                        [TupP (map VarP patternNames)]
-                        (TupE [query, tupleOrSingle (patternNames ++ antiNames)])
-        Left err -> error err
-
-tupleOrSingle :: [Name] -> Exp
-tupleOrSingle names = case names of
-    [name] -> VarE name
-    vs     -> TupE $ map VarE vs
-
-expressionOnly :: String -> (String -> Q Exp) -> QuasiQuoter
-expressionOnly name qq = QuasiQuoter
-    { quoteExp = qq
-    , quotePat = \_ -> error $ "qq " ++ name ++ " cannot be used in pattern context"
-    , quoteType = \_ -> error $ "qq " ++ name ++ " cannot be used in type context"
-    , quoteDec = \_ -> error $ "qq " ++ name ++ " cannot be used in declaration context"
-    }
+            queryParamsPair query positionalCount antiNames
 
 maxParam :: [Token] -> Word
 maxParam = foldr nextParam 0 where
