@@ -1,50 +1,53 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE OverloadedLists     #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE OverloadedLists #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeApplications    #-}
 module Test.Wire where
 
-import Preql.Wire
-import Test.Wire.Enum
+import           Preql.Wire
+import           Test.Wire.Enum
 
-import Control.Exception (Exception, bracket_, throwIO)
-import Control.Monad
-import Data.ByteString (ByteString)
-import Data.Either
-import Data.Int
-import Data.Maybe (fromMaybe)
-import Data.Text (Text)
+import           Control.Exception         (Exception, bracket_, throwIO)
+import           Control.Monad
+import           Data.ByteString           (ByteString)
+import           Data.Either
+import           Data.Int
+import           Data.Maybe                (fromMaybe)
+import           Data.Text                 (Text)
 #if MIN_VERSION_time(1,9,0)
-import Data.Time (Day, TimeOfDay, UTCTime)
-import Data.Time.Format.ISO8601 (iso8601ParseM)
+import           Data.Time                 (Day, TimeOfDay, UTCTime)
+import           Data.Time.Format.ISO8601  (iso8601ParseM)
 #else
-import Data.Time (Day, TimeOfDay, UTCTime, TimeZone)
-import Data.Time.Format (parseTimeM, defaultTimeLocale, iso8601DateFormat, ParseTime)
+import           Data.Time                 (Day, TimeOfDay, TimeZone, UTCTime)
+import           Data.Time.Format          (ParseTime, defaultTimeLocale,
+                                            iso8601DateFormat, parseTimeM)
 #endif
-import Data.Text.Encoding (encodeUtf8)
-import Data.Vector (Vector)
-import System.Environment (lookupEnv)
-import Test.Tasty
-import Test.Tasty.HUnit
+import           Data.Text.Encoding        (encodeUtf8)
+import           Data.Vector               (Vector)
+import           GHC.TypeNats
+import           System.Environment        (lookupEnv)
+import           Test.Tasty
+import           Test.Tasty.HUnit
 
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as TL
-import qualified Data.UUID as UUID
+import qualified Data.Text                 as T
+import qualified Data.Text.Lazy            as TL
+import qualified Data.UUID                 as UUID
 import qualified Database.PostgreSQL.LibPQ as PQ
-import qualified Preql.Wire.Query as W
+import qualified Preql.Wire.Query          as W
 
 wire :: TestTree
 wire = withResource initDB PQ.finish $ \db -> testGroup "wire" $
     let
         inTransaction desc body = testCase desc $
             bracket_ (query_ "BEGIN TRANSACTION" ()) (query_ "ROLLBACK" ()) body
-        query :: (ToSql p, FromSql r) => Query -> p -> IO (Either QueryError (Vector r))
+        query :: (ToSql p, FromSql r, KnownNat (Width r)) => Query (Width r) -> p -> IO (Either QueryError (Vector r))
         query q p = db >>= \conn -> W.query conn q p
-        query_ :: (ToSql p) => Query -> p -> IO ()
+        query_ :: (ToSql p) => Query 0 -> p -> IO ()
         query_ q p = db >>= \conn -> W.query_ conn q p >>= either throwIO pure
-        assertQuery :: (FromSql r, Eq r, Show r) => Vector r -> Query -> IO ()
+        assertQuery :: (FromSql r, Eq r, Show r, KnownNat (Width r)) => Vector r -> Query (Width r) -> IO ()
         assertQuery expected q = assertEqual "" (Right expected) =<< query q () in
         [ testGroup "decoders"
           [ inTransaction "decode True" $
@@ -201,17 +204,18 @@ connectionString :: IO ByteString
 connectionString = do
     m_dbname <- lookupEnv "PREQL_TESTS_DB"
     let dbname = case m_dbname of
-            Just s -> encodeUtf8 (T.pack s)
+            Just s  -> encodeUtf8 (T.pack s)
             Nothing -> "preql_tests"
     return $ "dbname=" <> dbname
 
 data BadConnection = BadConnection
-    { status :: PQ.ConnStatus
+    { status       :: PQ.ConnStatus
     , errorMessage :: ByteString
-    , host :: ByteString
-    , port :: ByteString
-    , user :: ByteString
-    } deriving (Show)
+    , host         :: ByteString
+    , port         :: ByteString
+    , user         :: ByteString
+    }
+    deriving (Show)
 instance Exception BadConnection
 
 badConnection :: PQ.Connection -> IO BadConnection
