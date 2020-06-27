@@ -11,7 +11,7 @@
     flags = {};
     package = {
       specVersion = "1.18";
-      identifier = { name = "preql"; version = "0.2"; };
+      identifier = { name = "preql"; version = "0.3"; };
       license = "BSD-3-Clause";
       copyright = "";
       maintainer = "bergey@teallabs.org";
