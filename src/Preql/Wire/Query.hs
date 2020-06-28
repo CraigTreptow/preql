@@ -2,7 +2,6 @@
 module Preql.Wire.Query where
 
 import           Preql.Wire.Errors
-import           Preql.Wire.FromSql
 import           Preql.Wire.Internal
 import           Preql.Wire.ToSql
 
@@ -43,13 +42,6 @@ execParams enc conn query params = do
                     msg <- PQ.resultErrorMessage result
                         <&> maybe (T.pack (show status)) (decodeUtf8With lenientDecode)
                     return (Left (ConnectionError msg))
-
-query :: (ToSql p, FromSql r, KnownNat (Width r)) =>
-    PQ.Connection -> Query (Width r) -> p -> IO (Either QueryError (Vector r))
-query = queryWith toSql fromSql
-
-query_ :: ToSql p => PQ.Connection -> Query n -> p -> IO (Either QueryError ())
-query_ = queryWith_ toSql
 
 connectionError :: PQ.Connection -> Maybe a -> IO (Either Text a)
 connectionError _conn (Just a) = return (Right a)
