@@ -91,3 +91,4 @@ very promising approach.
 
 If you know of other libraries with similar ambitions, please let me know.
 
+testing CI
