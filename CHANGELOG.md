@@ -17,3 +17,5 @@
 - binary wire format
 - check that Postgres sent expected type before decoding
 - Quasiquoter supports mixing numbered & antiquoted params
+
+testing ci
